@@ -69,8 +69,26 @@
 /obj/item/projectile/bullet/pellet
 	name = "pellet"
 	damage = 12.5
+	var/tile_dropoff = 0.75
+	var/tile_dropoff_s = 1.25
+
+/obj/item/projectile/bullet/pellet/Range()
+	..()
+	if(damage > 0)
+		damage -= tile_dropoff
+	if(stamina > 0)
+		stamina -= tile_dropoff_s
+	if(damage < 0 && stamina < 0)
+		qdel(src)
+
+/obj/item/projectile/bullet/pellet/rubber
+	name = "rubber pellet"
+	damage = 3
+	stamina = 25
+	icon_state = "bullet-r"
 
 /obj/item/projectile/bullet/pellet/weak
+	tile_dropoff = 0.55		//Come on it does 6 damage don't be like that.
 	damage = 6
 
 /obj/item/projectile/bullet/pellet/weak/New()
@@ -78,9 +96,7 @@
 	..()
 
 /obj/item/projectile/bullet/pellet/weak/on_range()
- 	var/datum/effect/system/spark_spread/sparks = new /datum/effect/system/spark_spread
- 	sparks.set_up(1, 1, src)
- 	sparks.start()
+ 	do_sparks(1, 1, src)
  	..()
 
 /obj/item/projectile/bullet/pellet/overload
@@ -96,14 +112,16 @@
 
 /obj/item/projectile/bullet/pellet/overload/on_range()
  	explosion(src, 0, 0, 2)
- 	var/datum/effect/system/spark_spread/sparks = new /datum/effect/system/spark_spread
- 	sparks.set_up(3, 3, src)
- 	sparks.start()
+ 	do_sparks(3, 3, src)
  	..()
 
 /obj/item/projectile/bullet/midbullet
 	damage = 20
 	stamina = 65 //two rounds from the c20r knocks people down
+
+/obj/item/projectile/bullet/midbullet_r
+	damage = 5
+	stamina = 75 //Still two rounds to knock people down
 
 /obj/item/projectile/bullet/midbullet2
 	damage = 25
@@ -127,12 +145,6 @@
 
 /obj/item/projectile/bullet/heavybullet
 	damage = 35
-
-/obj/item/projectile/bullet/rpellet
-	name = "rubber pellet"
-	damage = 3
-	stamina = 25
-	icon_state = "bullet-r"
 
 /obj/item/projectile/bullet/stunshot//taser slugs for shotguns, nothing special
 	name = "stunshot"

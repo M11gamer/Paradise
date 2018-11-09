@@ -1,6 +1,16 @@
 //Object specific defines
 #define CANDLE_LUM 3 //For how bright candles are
 
+//Directions (already defined on BYOND natively, purely here for reference)
+//#define NORTH		1
+//#define SOUTH		2
+//#define EAST		4
+//#define WEST		8
+//#define NORTHEAST	5
+//#define SOUTHEAST 6
+//#define NORTHWEST 9
+//#define SOUTHWEST 10
+
 //Security levels
 #define SEC_LEVEL_GREEN	0
 #define SEC_LEVEL_BLUE	1
@@ -118,6 +128,7 @@
 #define LIGHT_COLOR_DARKGREEN	"#50AB00"
 #define LIGHT_COLOR_PURE_GREEN	"#00FF00"
 
+#define LIGHT_COLOR_BLUE       "#6496FA" //Cold, diluted blue. rgb(100, 150, 250)
 #define LIGHT_COLOR_LIGHTBLUE	"#0099FF"
 #define LIGHT_COLOR_DARKBLUE	"#315AB4"
 #define LIGHT_COLOR_PURE_BLUE	"#0000FF"
@@ -125,6 +136,8 @@
 #define LIGHT_COLOR_FADEDPURPLE	"#A97FAA"
 #define LIGHT_COLOR_PURPLE		"#CD00CD"
 #define LIGHT_COLOR_PINK		"#FF33CC"
+
+#define LIGHT_COLOR_YELLOW     "#E1E17D" //Dimmed yellow, leaning kaki. rgb(225, 225, 125)
 
 #define LIGHT_COLOR_WHITE		"#FFFFFF"
 
@@ -161,20 +174,6 @@
 
 #define MIN_SUPPLIED_LAW_NUMBER 15
 #define MAX_SUPPLIED_LAW_NUMBER 50
-
-//Material defines
-#define MAT_METAL			"$metal"
-#define MAT_GLASS			"$glass"
-#define MAT_SILVER			"$silver"
-#define MAT_GOLD			"$gold"
-#define MAT_DIAMOND			"$diamond"
-#define MAT_URANIUM			"$uranium"
-#define MAT_PLASMA			"$plasma"
-#define MAT_BANANIUM		"$bananium"
-#define MAT_TRANQUILLITE	"$tranquillite"
-#define MAT_BIOMASS			"$biomass"
-
-#define MAX_STACK_SIZE 50
 
 //check_target_facings() return defines
 #define FACING_FAILED											0
@@ -214,7 +213,7 @@
 #define MARKINGS_LAYER			4
 #define UNDERWEAR_LAYER			5
 #define MUTATIONS_LAYER			6
-#define DAMAGE_LAYER			7
+#define H_DAMAGE_LAYER			7
 #define UNIFORM_LAYER			8
 #define ID_LAYER				9
 #define SHOES_LAYER				10
@@ -254,6 +253,9 @@
 #define REGION_COMMAND		7
 #define REGION_CENTCOMM		8
 
+//Just space
+#define SPACE_ICON_STATE	"[((x + y) ^ ~(x * y) + z) % 25]"
+
 //used for maploader
 #define MAP_MINX 1
 #define MAP_MINY 2
@@ -275,6 +277,20 @@
                                0.4,0.6,0.0,\
                                0.2,0.2,0.6)
 
+#define LIST_REPLACE_RENAME list("rebeccapurple" = "dark purple", "darkslategrey" = "dark grey", "darkolivegreen" = "dark green", "darkslateblue" = "dark blue",\
+								 "darkkhaki" = "khaki", "darkseagreen" = "light green", "midnightblue" = "blue", "lightgrey" = "light grey", "darkgrey" = "dark grey",\
+								 "steelblue" = "blue", "goldenrod" = "gold")
+
+#define LIST_GREYSCALE_REPLACE list("red" = "lightgrey", "blue" = "grey", "green" = "grey", "orange" = "lightgrey", "brown" = "grey",\
+									"gold" = "lightgrey", "cyan" = "lightgrey", "navy" = "grey", "purple" = "grey", "pink"= "lightgrey")
+
+#define LIST_VULP_REPLACE list("pink" = "beige", "orange" = "goldenrod", "gold" = "goldenrod", "red" = "darkolivegreen", "brown" = "darkolivegreen",\
+									 "green" = "darkslategrey", "cyan" = "steelblue", "purple" = "darkslategrey", "navy" = "midnightblue")
+
+#define LIST_TAJ_REPLACE list("red" = "rebeccapurple", "brown" = "rebeccapurple", "purple" = "darkslateblue", "blue" = "darkslateblue",\
+									 "green" = "darkolivegreen", "orange" = "darkkhaki", "gold" = "darkkhaki", "cyan" = "darkseagreen", \
+									 "navy" = "midnightblue", "pink" = "lightgrey")
+
 
 //Gun trigger guards
 #define TRIGGER_GUARD_ALLOW_ALL -1
@@ -290,12 +306,6 @@
 // Used by radios to indicate that they have sent a message via something other than subspace
 #define RADIO_CONNECTION_FAIL 0
 #define RADIO_CONNECTION_NON_SUBSPACE 1
-
-//Fire stuff, for burn_state
-#define LAVA_PROOF -2
-#define FIRE_PROOF -1
-#define FLAMMABLE 0
-#define ON_FIRE 1
 
 // Bluespace shelter deploy checks
 #define SHELTER_DEPLOY_ALLOWED "allowed"
@@ -331,7 +341,6 @@
 #define SECOND_DIAG_STEP 2
 
 #define ARBITRARY_VIEWRANGE_NOHUD 2
-#define SECOND_DIAG_STEP 2
 
 //Bloody shoes/footprints
 #define MAX_SHOE_BLOODINESS			100
@@ -344,5 +353,36 @@
 #define BLOOD_STATE_XENO			"xeno"
 #define BLOOD_STATE_NOT_BLOODY		"no blood whatsoever"
 
+//for obj explosion block calculation
+#define EXPLOSION_BLOCK_PROC -1
+
+// Defines for investigate to prevent typos and for styling
+#define INVESTIGATE_LABEL "labels"
+
+#define INVESTIGATE_BOMB "bombs"
+
 // The SQL version required by this version of the code
-#define SQL_VERSION 1
+#define SQL_VERSION 4
+
+// Vending machine stuff
+#define CAT_NORMAL 1
+#define CAT_HIDDEN 2
+#define CAT_COIN   4
+
+// Jobs
+// used for alternate_option
+#define GET_RANDOM_JOB 0
+#define BE_ASSISTANT 1
+#define RETURN_TO_LOBBY 2
+
+//Melting Temperatures for various specific objects
+#define GIRDER_MELTING_TEMP 5000
+
+// Area selection defines
+#define AREASELECT_CORNERA "corner A"
+#define AREASELECT_CORNERB "corner B"
+
+//https://secure.byond.com/docs/ref/info.html#/atom/var/mouse_opacity
+#define MOUSE_OPACITY_TRANSPARENT 0
+#define MOUSE_OPACITY_ICON 1
+#define MOUSE_OPACITY_OPAQUE 2

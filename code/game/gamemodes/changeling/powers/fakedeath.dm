@@ -15,9 +15,13 @@
 		user.emote("deathgasp")
 		user.timeofdeath = world.time
 	user.status_flags |= FAKEDEATH		//play dead
+	user.update_stat("fakedeath sting")
 	user.update_canmove()
-
-	addtimer(src, "ready_to_regenerate", LING_FAKEDEATH_TIME, FALSE, user)
+	user.med_hud_set_health()
+	user.handle_hud_icons_health()
+	user.med_hud_set_status()
+	
+	addtimer(CALLBACK(src, .proc/ready_to_regenerate, user), LING_FAKEDEATH_TIME)
 	feedback_add_details("changeling_powers","FD")
 	return 1
 
