@@ -16,6 +16,7 @@
 	//Processing flags, defines the type of mobs the reagent will affect
 	//By default, all reagents will ONLY affect organics, not synthetics. Re-define in the reagent's definition if the reagent is meant to affect synths
 	var/process_flags = ORGANIC
+	var/harmless = FALSE //flag used for attack logs
 	var/can_synth = TRUE //whether or not a mech syringe gun and synthesize this reagent
 	var/overdose_threshold = 0
 	var/addiction_chance = 0
@@ -26,12 +27,18 @@
 	var/drink_icon = null
 	var/drink_name = "Glass of ..what?"
 	var/drink_desc = "You can't really tell what this is."
-	var/taste_strength = 1 //how easy it is to taste - the more the easier
-	var/taste_message = "bitterness" //life's bitter by default. Cool points for using a span class for when you're tasting <span class='userdanger'>LIQUID FUCKING DEATH</span>
+	var/taste_mult = 1 //how easy it is to taste - the more the easier
+	var/taste_description = "metaphorical salt"
 
 /datum/reagent/Destroy()
 	. = ..()
 	holder = null
+	if(islist(data))
+		data.Cut()
+	data = null
+
+/datum/reagent/proc/reaction_temperature(exposed_temperature, exposed_volume) //By default we do nothing.
+	return
 
 /datum/reagent/proc/reaction_mob(mob/living/M, method = TOUCH, volume) //Some reagents transfer on touch, others don't; dependent on if they penetrate the skin or not.
 	if(holder)  //for catching rare runtimes
@@ -72,6 +79,10 @@
 	return STATUS_UPDATE_NONE
 
 /datum/reagent/proc/on_mob_death(mob/living/M)	//use this to have chems have a "death-triggered" effect
+	return
+
+// Called when this reagent is first added to a mob
+/datum/reagent/proc/on_mob_add(mob/living/L)
 	return
 
 // Called when this reagent is removed while inside a mob
@@ -155,3 +166,32 @@
 	if(prob(5))
 		to_chat(M, "<span class='warning'>You would DIE for some [name] right now!</span>")
 	return update_flags
+
+/datum/reagent/proc/fakedeath(mob/living/M)
+	if(M.status_flags & FAKEDEATH)
+		return
+	if(!(M.status_flags & CANPARALYSE))
+		return
+	if(M.mind && M.mind.changeling && M.mind.changeling.regenerating) //no messing with changeling's fake death
+		return
+	M.emote("deathgasp")
+	M.status_flags |= FAKEDEATH
+	M.update_stat("fakedeath reagent")
+	M.med_hud_set_health()
+	M.med_hud_set_status()
+
+/datum/reagent/proc/fakerevive(mob/living/M)
+	if(!(M.status_flags & FAKEDEATH))
+		return
+	if(M.mind && M.mind.changeling && M.mind.changeling.regenerating)
+		return
+	if(M.resting)
+		M.StopResting()
+	M.status_flags &= ~(FAKEDEATH)
+	M.update_stat("fakedeath reagent end")
+	M.med_hud_set_status()
+	M.med_hud_set_health()
+	if(M.healthdoll)
+		M.healthdoll.cached_healthdoll_overlays.Cut()
+	if(M.dna.species)
+		M.dna.species.handle_hud_icons(M)

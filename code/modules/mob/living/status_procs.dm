@@ -43,10 +43,6 @@
 			A trippy overlay appears.
 	*	Drunk						*
 			Essentially what your "BAC" is - the higher it is, the more alcohol you have in you
-	* EarDamage				*
-			Doesn't do much, but if it's 25+, you go deaf. Heals much slower than other statuses - 0.05 normally
-	*	EarDeaf					*
-			You cannot hear. Prevents EarDamage from healing naturally.
 	*	EyeBlind				*
 			You cannot see. Prevents EyeBlurry from healing naturally.
 	*	EyeBlurry				*
@@ -115,8 +111,6 @@
 	var/drowsyness = 0
 	var/druggy = 0
 	var/drunk = 0
-	var/ear_damage = 0
-	var/ear_deaf = 0
 	var/eye_blind = 0
 	var/eye_blurry = 0
 	var/hallucination = 0
@@ -233,30 +227,6 @@
 	var/new_value = directional_bounded_sum(druggy, amount, bound_lower, bound_upper)
 	return SetDruggy(new_value, updating)
 
-// EAR_DAMAGE
-
-/mob/living/EarDamage(amount)
-	SetEarDamage(max(ear_damage, amount))
-
-/mob/living/SetEarDamage(amount)
-	ear_damage = max(amount, 0)
-
-/mob/living/AdjustEarDamage(amount, bound_lower = 0, bound_upper = INFINITY)
-	var/new_value = directional_bounded_sum(ear_damage, amount, bound_lower, bound_upper)
-	SetEarDamage(new_value)
-
-// EAR_DEAF
-
-/mob/living/EarDeaf(amount)
-	SetEarDeaf(max(ear_deaf, amount))
-
-/mob/living/SetEarDeaf(amount)
-	ear_deaf = max(amount, 0)
-
-/mob/living/AdjustEarDeaf(amount, bound_lower = 0, bound_upper = INFINITY)
-	var/new_value = directional_bounded_sum(ear_deaf, amount, bound_lower, bound_upper)
-	SetEarDeaf(new_value)
-
 // EYE_BLIND
 
 /mob/living/EyeBlind(amount, updating = TRUE)
@@ -327,6 +297,9 @@
 	SetLoseBreath(max(losebreath, amount))
 
 /mob/living/SetLoseBreath(amount)
+	if(BREATHLESS in mutations)
+		losebreath = 0
+		return FALSE
 	losebreath = max(amount, 0)
 
 /mob/living/AdjustLoseBreath(amount, bound_lower = 0, bound_upper = INFINITY)
@@ -424,6 +397,9 @@
 // STUN
 
 /mob/living/Stun(amount, updating = 1, force = 0)
+	if(status_flags & CANSTUN || force)
+		if(absorb_stun(amount, force))
+			return FALSE
 	return SetStunned(max(stunned, amount), updating, force)
 
 /mob/living/SetStunned(amount, updating = 1, force = 0) //if you REALLY need to set stun to a set amount without the whole "can't go below current stunned"
@@ -461,6 +437,9 @@
 // WEAKEN
 
 /mob/living/Weaken(amount, updating = 1, force = 0)
+	if(status_flags & CANWEAKEN || force)
+		if(absorb_stun(amount, force))
+			return FALSE
 	return SetWeakened(max(weakened, amount), updating, force)
 
 /mob/living/SetWeakened(amount, updating = 1, force = 0)
@@ -576,3 +555,45 @@
 		dna.SetSEState(block, 0, 1) //Fix the gene
 		genemutcheck(src, block,null, MUTCHK_FORCED)
 		dna.UpdateSE()
+
+///////////////////////////////// FROZEN /////////////////////////////////////
+
+/mob/living/proc/IsFrozen()
+	return has_status_effect(/datum/status_effect/freon)
+
+///////////////////////////////////// STUN ABSORPTION /////////////////////////////////////
+
+/mob/living/proc/add_stun_absorption(key, duration, priority, message, self_message, examine_message)
+//adds a stun absorption with a key, a duration in deciseconds, its priority, and the messages it makes when you're stun/examined, if any
+	if(!islist(stun_absorption))
+		stun_absorption = list()
+	if(stun_absorption[key])
+		stun_absorption[key]["end_time"] = world.time + duration
+		stun_absorption[key]["priority"] = priority
+		stun_absorption[key]["stuns_absorbed"] = 0
+	else
+		stun_absorption[key] = list("end_time" = world.time + duration, "priority" = priority, "stuns_absorbed" = 0, \
+		"visible_message" = message, "self_message" = self_message, "examine_message" = examine_message)
+
+/mob/living/proc/absorb_stun(amount, ignoring_flag_presence)
+	if(amount < 0 || stat || ignoring_flag_presence || !islist(stun_absorption))
+		return FALSE
+	if(!amount)
+		amount = 0
+	var/priority_absorb_key
+	var/highest_priority
+	for(var/i in stun_absorption)
+		if(stun_absorption[i]["end_time"] > world.time && (!priority_absorb_key || stun_absorption[i]["priority"] > highest_priority))
+			priority_absorb_key = stun_absorption[i]
+			highest_priority = priority_absorb_key["priority"]
+	if(priority_absorb_key)
+		if(amount) //don't spam up the chat for continuous stuns
+			if(priority_absorb_key["visible_message"] || priority_absorb_key["self_message"])
+				if(priority_absorb_key["visible_message"] && priority_absorb_key["self_message"])
+					visible_message("<span class='warning'>[src][priority_absorb_key["visible_message"]]</span>", "<span class='boldwarning'>[priority_absorb_key["self_message"]]</span>")
+				else if(priority_absorb_key["visible_message"])
+					visible_message("<span class='warning'>[src][priority_absorb_key["visible_message"]]</span>")
+				else if(priority_absorb_key["self_message"])
+					to_chat(src, "<span class='boldwarning'>[priority_absorb_key["self_message"]]</span>")
+			priority_absorb_key["stuns_absorbed"] += amount
+		return TRUE

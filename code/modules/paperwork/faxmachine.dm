@@ -2,13 +2,17 @@ var/list/obj/machinery/photocopier/faxmachine/allfaxes = list()
 var/list/admin_departments = list("Central Command")
 var/list/hidden_admin_departments = list("Syndicate")
 var/list/alldepartments = list()
+var/list/hidden_departments = list()
+var/global/list/fax_blacklist = list()
 
 /obj/machinery/photocopier/faxmachine
 	name = "fax machine"
 	icon = 'icons/obj/library.dmi'
 	icon_state = "fax"
 	insert_anim = "faxsend"
+	pass_flags = PASSTABLE
 	var/fax_network = "Local Fax Network"
+	var/syndie_restricted = FALSE //is it a syndicate base fax restricted from contacting NT assets?
 
 	var/long_range_enabled = 0 // Can we send messages off the station?
 	req_one_access = list(access_lawyer, access_heads, access_armory)
@@ -34,13 +38,24 @@ var/list/alldepartments = list()
 
 /obj/machinery/photocopier/faxmachine/proc/update_network()
 	if(department != "Unknown")
-		if(!(("[department]" in alldepartments) || ("[department]" in admin_departments) || ("[department]" in hidden_admin_departments)))
+		if(!(("[department]" in alldepartments) || ("[department]" in hidden_departments) || ("[department]" in admin_departments) || ("[department]" in hidden_admin_departments)))
 			alldepartments |= department
 
 /obj/machinery/photocopier/faxmachine/longrange
 	name = "long range fax machine"
 	fax_network = "Central Command Quantum Entanglement Network"
 	long_range_enabled = 1
+
+/obj/machinery/photocopier/faxmachine/longrange/syndie
+	name = "syndicate long range fax machine"
+	emagged = TRUE
+	syndie_restricted = TRUE
+	req_one_access = list(access_syndicate)
+	//No point setting fax network, being emagged overrides that anyway.
+
+/obj/machinery/photocopier/faxmachine/longrange/syndie/update_network()
+	if(department != "Unknown")
+		hidden_departments |= department
 
 /obj/machinery/photocopier/faxmachine/attack_hand(mob/user)
 	ui_interact(user)
@@ -60,6 +75,7 @@ var/list/alldepartments = list()
 /obj/machinery/photocopier/faxmachine/emag_act(mob/user)
 	if(!emagged)
 		emagged = 1
+		req_one_access = list()
 		to_chat(user, "<span class='notice'>The transmitters realign to an unknown source!</span>")
 	else
 		to_chat(user, "<span class='warning'>You swipe the card through [src], but nothing happens.</span>")
@@ -117,7 +133,7 @@ var/list/alldepartments = list()
 			if((destination in admin_departments) || (destination in hidden_admin_departments))
 				send_admin_fax(usr, destination)
 			else
-				sendfax(destination,usr)
+				sendfax(destination, usr)
 
 			if(sendcooldown)
 				spawn(sendcooldown) // cooldown time
@@ -153,6 +169,14 @@ var/list/alldepartments = list()
 
 			if(emagged)
 				combineddepartments += hidden_admin_departments.Copy()
+				combineddepartments += hidden_departments.Copy()
+
+			if(syndie_restricted)
+				combineddepartments = hidden_admin_departments.Copy()
+				combineddepartments += hidden_departments.Copy()
+				for(var/obj/machinery/photocopier/faxmachine/F in allfaxes)
+					if(F.emagged)//we can contact emagged faxes on the station
+						combineddepartments |= F.department
 
 			destination = input(usr, "To which department?", "Choose a department", "") as null|anything in combineddepartments
 			if(!destination)
@@ -160,7 +184,9 @@ var/list/alldepartments = list()
 
 	if(href_list["auth"])
 		if(!is_authenticated && scan)
-			if(check_access(scan))
+			if(scan.registered_name in fax_blacklist)
+				playsound(loc, 'sound/machines/buzz-sigh.ogg', 50, 0)
+			else if(check_access(scan))
 				authenticated = 1
 		else if(is_authenticated)
 			authenticated = 0
@@ -279,34 +305,25 @@ var/list/alldepartments = list()
 
 	use_power(200)
 
-	var/obj/item/rcvdcopy
-	if(istype(copyitem, /obj/item/paper))
-		rcvdcopy = copy(copyitem)
-	else if(istype(copyitem, /obj/item/photo))
-		rcvdcopy = photocopy(copyitem)
-	else if(istype(copyitem, /obj/item/paper_bundle))
-		rcvdcopy = bundlecopy(copyitem)
-	else
+	if(!(istype(copyitem, /obj/item/paper) || istype(copyitem, /obj/item/paper_bundle) || istype(copyitem, /obj/item/photo)))
 		visible_message("[src] beeps, \"Error transmitting message.\"")
 		return
 
-	rcvdcopy.loc = null //hopefully this shouldn't cause trouble
-
 	var/datum/fax/admin/A = new /datum/fax/admin()
-	A.name = rcvdcopy.name
+	A.name = copyitem.name
 	A.from_department = department
 	A.to_department = destination
 	A.origin = src
-	A.message = rcvdcopy
+	A.message = copyitem
 	A.sent_by = sender
 	A.sent_at = world.time
 
 	//message badmins that a fax has arrived
 	switch(destination)
 		if("Central Command")
-			message_admins(sender, "CENTCOM FAX", destination, rcvdcopy, "#006100")
+			message_admins(sender, "CENTCOM FAX", destination, copyitem, "#006100")
 		if("Syndicate")
-			message_admins(sender, "SYNDICATE FAX", destination, rcvdcopy, "#DC143C")
+			message_admins(sender, "SYNDICATE FAX", destination, copyitem, "#DC143C")
 	for(var/obj/machinery/photocopier/faxmachine/F in allfaxes)
 		if(F.department == destination)
 			F.receivefax(copyitem)
@@ -322,3 +339,9 @@ var/list/alldepartments = list()
 			to_chat(C, msg)
 			if(C.prefs.sound & SOUND_ADMINHELP)
 				C << 'sound/effects/adminhelp.ogg'
+
+/obj/machinery/photocopier/faxmachine/proc/become_mimic()
+	if(scan)
+		scan.forceMove(get_turf(src))
+	var/mob/living/simple_animal/hostile/mimic/copy/M = new(loc, src, null, 1) // it will delete src on creation and override any machine checks
+	M.name = "angry fax machine"

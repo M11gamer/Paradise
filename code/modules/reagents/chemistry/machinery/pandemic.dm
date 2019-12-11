@@ -8,6 +8,7 @@
 	circuit = /obj/item/circuitboard/pandemic
 	use_power = IDLE_POWER_USE
 	idle_power_usage = 20
+	resistance_flags = ACID_PROOF
 	var/temp_html = ""
 	var/printing = null
 	var/wait = null
@@ -135,12 +136,11 @@
 		return
 	else if(href_list["empty_beaker"])
 		beaker.reagents.clear_reagents()
+		eject_beaker()
 		updateUsrDialog()
 		return
 	else if(href_list["eject"])
-		beaker:loc = loc
-		beaker = null
-		icon_state = "mixer0"
+		eject_beaker()
 		updateUsrDialog()
 		return
 	else if(href_list["clear"])
@@ -173,6 +173,11 @@
 
 	add_fingerprint(usr)
 
+/obj/machinery/computer/pandemic/proc/eject_beaker()
+	beaker.forceMove(loc)
+	beaker = null
+	icon_state = "mixer0"
+
 //Prints a nice virus release form. Props to Urbanliner for the layout
 /obj/machinery/computer/pandemic/proc/print_form(var/datum/disease/advance/D, mob/living/user)
 	D = archive_diseases[D.GetDiseaseID()]
@@ -185,18 +190,18 @@
 			english_symptoms += S.name
 		var/symtoms = english_list(english_symptoms)
 
-		
+
 		var/signature
 		if(alert(user,"Would you like to add your signature?",,"Yes","No") == "Yes")
 			signature = "<font face=\"[SIGNFONT]\"><i>[user ? user.real_name : "Anonymous"]</i></font>"
-		else 
+		else
 			signature = "<span class=\"paper_field\"></span>"
-		
+
 		printing = 1
 		var/obj/item/paper/P = new /obj/item/paper(loc)
 		visible_message("<span class='notice'>[src] rattles and prints out a sheet of paper.</span>")
 		playsound(loc, 'sound/goonstation/machines/printer_dotmatrix.ogg', 50, 1)
-		
+
 		P.info = "<U><font size=\"4\"><B><center> Releasing Virus </B></center></font></U>"
 		P.info += "<HR>"
 		P.info += "<U>Name of the Virus:</U> [D.name] <BR>"
@@ -308,7 +313,7 @@
 					dat += "nothing<BR>"
 			else
 				dat += "nothing<BR>"
-		dat += "<BR><A href='?src=[UID()];eject=1'>Eject beaker</A>[((R.total_volume&&R.reagent_list.len) ? "-- <A href='?src=[UID()];empty_beaker=1'>Empty beaker</A>":"")]<BR>"
+		dat += "<BR><A href='?src=[UID()];eject=1'>Eject beaker</A>[((R.total_volume&&R.reagent_list.len) ? "-- <A href='?src=[UID()];empty_beaker=1'>Empty and eject beaker</A>":"")]<BR>"
 		dat += "<A href='?src=[user.UID()];mach_close=pandemic'>Close</A>"
 
 	var/datum/browser/popup = new(user, "pandemic", name, 575, 400)
@@ -318,6 +323,9 @@
 
 
 /obj/machinery/computer/pandemic/attackby(obj/item/I, mob/user, params)
+	if(default_unfasten_wrench(user, I))
+		power_change()
+		return
 	if(istype(I, /obj/item/reagent_containers) && (I.container_type & OPENCONTAINER))
 		if(stat & (NOPOWER|BROKEN))
 			return
@@ -335,8 +343,6 @@
 
 	else if(istype(I, /obj/item/screwdriver))
 		if(beaker)
-			beaker.loc = get_turf(src)
-		..()
-		return
+			beaker.forceMove(get_turf(src))
 	else
-		..()
+		return ..()

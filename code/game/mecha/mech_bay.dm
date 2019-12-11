@@ -51,6 +51,16 @@
 	RefreshParts()
 	update_recharge_turf()
 
+/obj/machinery/mech_bay_recharge_port/upgraded/unsimulated/process()
+	if(!recharging_mecha)
+		recharging_mecha = locate(/obj/mecha) in recharging_turf
+	if(recharging_mecha && recharging_mecha.cell)
+		if(recharging_mecha.cell.charge < recharging_mecha.cell.maxcharge)
+			var/delta = min(max_charge, recharging_mecha.cell.maxcharge - recharging_mecha.cell.charge)
+			recharging_mecha.give_power(delta)
+		if(recharging_mecha.loc != recharging_turf)
+			recharging_mecha = null
+
 /obj/machinery/mech_bay_recharge_port/RefreshParts()
 	var/MC
 	for(var/obj/item/stock_parts/capacitor/C in component_parts)
@@ -165,7 +175,7 @@
 	if(recharge_port && !QDELETED(recharge_port))
 		data["recharge_port"] = list("mech" = null)
 		if(recharge_port.recharging_mecha && !QDELETED(recharge_port.recharging_mecha))
-			data["recharge_port"]["mech"] = list("health" = recharge_port.recharging_mecha.health, "maxhealth" = initial(recharge_port.recharging_mecha.health), "cell" = null)
+			data["recharge_port"]["mech"] = list("health" = recharge_port.recharging_mecha.obj_integrity, "maxhealth" = initial(recharge_port.recharging_mecha.max_integrity), "cell" = null)
 			if(recharge_port.recharging_mecha.cell && !QDELETED(recharge_port.recharging_mecha.cell))
 				data["has_mech"] = 1
 				data["mecha_name"] = recharge_port.recharging_mecha || "None"

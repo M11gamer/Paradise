@@ -199,6 +199,9 @@
 		to_chat(user, "<span class='notice'>You override the library computer's printing restrictions.</span>")
 
 /obj/machinery/computer/library/checkout/attackby(obj/item/W as obj, mob/user as mob)
+	if(default_unfasten_wrench(user, W))
+		power_change()
+		return
 	if(istype(W, /obj/item/barcodescanner))
 		var/obj/item/barcodescanner/scanner = W
 		scanner.computer = src
@@ -317,11 +320,11 @@
 				if(!bibledelay)
 
 					var/obj/item/storage/bible/B = new /obj/item/storage/bible(src.loc)
-					if(ticker && ( ticker.Bible_icon_state && ticker.Bible_item_state) )
-						B.icon_state = ticker.Bible_icon_state
-						B.item_state = ticker.Bible_item_state
-						B.name = ticker.Bible_name
-						B.deity_name = ticker.Bible_deity_name
+					if(SSticker && ( SSticker.Bible_icon_state && SSticker.Bible_item_state) )
+						B.icon_state = SSticker.Bible_icon_state
+						B.item_state = SSticker.Bible_item_state
+						B.name = SSticker.Bible_name
+						B.deity_name = SSticker.Bible_deity_name
 
 					bibledelay = 1
 					spawn(60)

@@ -57,9 +57,9 @@
 		..()
 
 /obj/item/twohanded/rcl/examine(mob/user)
-	..()
+	. = ..()
 	if(loaded)
-		to_chat(user, "<span class='info'>It contains [loaded.amount]/[max_amount] cables.</span>")
+		. += "<span class='info'>It contains [loaded.amount]/[max_amount] cables.</span>"
 
 /obj/item/twohanded/rcl/Destroy()
 	QDEL_NULL(loaded)
@@ -85,6 +85,7 @@
 		else
 			icon_state = "rcl-0"
 			item_state = "rcl-0"
+	..()
 
 /obj/item/twohanded/rcl/proc/is_empty(mob/user, loud = 1)
 	update_icon()

@@ -41,10 +41,10 @@ var/const/SAFETY_COOLDOWN = 100
 	amount_produced = min(100, amt_made)
 
 /obj/machinery/recycler/examine(mob/user)
-	..(user)
-	to_chat(user, "The power light is [(stat & NOPOWER) ? "off" : "on"].")
-	to_chat(user, "The safety-mode light is [safety_mode ? "on" : "off"].")
-	to_chat(user, "The safety-sensors status light is [emagged ? "off" : "on"].")
+	. = ..()
+	. += "The power light is [(stat & NOPOWER) ? "off" : "on"]."
+	. += "The safety-mode light is [safety_mode ? "on" : "off"]."
+	. += "The safety-sensors status light is [emagged ? "off" : "on"]."
 
 /obj/machinery/recycler/power_change()
 	..()
@@ -158,7 +158,7 @@ var/const/SAFETY_COOLDOWN = 100
 	L.loc = loc
 
 	if(issilicon(L))
-		playsound(loc, 'sound/items/Welder.ogg', 50, 1)
+		playsound(loc, 'sound/items/welder.ogg', 50, 1)
 	else
 		playsound(loc, 'sound/effects/splat.ogg', 50, 1)
 
@@ -176,7 +176,7 @@ var/const/SAFETY_COOLDOWN = 100
 
 	// Remove and recycle the equipped items
 	if(eat_victim_items)
-		for(var/obj/item/I in L.get_equipped_items())
+		for(var/obj/item/I in L.get_equipped_items(TRUE))
 			if(L.unEquip(I))
 				eat(I, sound = 0)
 

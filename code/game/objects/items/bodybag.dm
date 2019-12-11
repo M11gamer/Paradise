@@ -12,23 +12,6 @@
 		R.add_fingerprint(user)
 		qdel(src)
 
-
-/obj/item/storage/box/bodybags
-	name = "body bags"
-	desc = "This box contains body bags."
-	icon_state = "bodybags"
-
-/obj/item/storage/box/bodybags/New()
-	..()
-	new /obj/item/bodybag(src)
-	new /obj/item/bodybag(src)
-	new /obj/item/bodybag(src)
-	new /obj/item/bodybag(src)
-	new /obj/item/bodybag(src)
-	new /obj/item/bodybag(src)
-	new /obj/item/bodybag(src)
-
-
 /obj/structure/closet/body_bag
 	name = "body bag"
 	desc = "A plastic bag designed for the storage and transportation of cadavers."
@@ -39,6 +22,7 @@
 	sound = 'sound/items/zip.ogg'
 	var/item_path = /obj/item/bodybag
 	density = 0
+	integrity_failure = 0
 
 
 /obj/structure/closet/body_bag/attackby(W as obj, mob/user as mob, params)
@@ -55,13 +39,13 @@
 			src.overlays += image(src.icon, "bodybag_label")
 		else
 			src.name = "body bag"
-	//..() //Doesn't need to run the parent. Since when can fucking bodybags be welded shut? -Agouri
 		return
-	else if(istype(W, /obj/item/wirecutters))
+	if(istype(W, /obj/item/wirecutters))
 		to_chat(user, "You cut the tag off the bodybag")
 		src.name = "body bag"
 		src.overlays.Cut()
 		return
+	return ..()
 
 
 /obj/structure/closet/body_bag/close()

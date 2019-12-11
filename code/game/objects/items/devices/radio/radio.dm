@@ -22,6 +22,7 @@ var/global/list/default_medbay_channels = list(
 /obj/item/radio
 	icon = 'icons/obj/radio.dmi'
 	name = "station bounced radio"
+	dog_fashion = /datum/dog_fashion/back
 	suffix = "\[3\]"
 	icon_state = "walkietalkie"
 	item_state = "walkietalkie"
@@ -59,9 +60,9 @@ var/global/list/default_medbay_channels = list(
 
 
 /obj/item/radio/proc/set_frequency(new_frequency)
-	radio_controller.remove_object(src, frequency)
+	SSradio.remove_object(src, frequency)
 	frequency = new_frequency
-	radio_connection = radio_controller.add_object(src, frequency, RADIO_CHAT)
+	radio_connection = SSradio.add_object(src, frequency, RADIO_CHAT)
 
 
 /obj/item/radio/New()
@@ -73,10 +74,10 @@ var/global/list/default_medbay_channels = list(
 
 /obj/item/radio/Destroy()
 	QDEL_NULL(wires)
-	if(radio_controller)
-		radio_controller.remove_object(src, frequency)
+	if(SSradio)
+		SSradio.remove_object(src, frequency)
 		for(var/ch_name in channels)
-			radio_controller.remove_object(src, radiochannels[ch_name])
+			SSradio.remove_object(src, SSradio.radiochannels[ch_name])
 	radio_connection = null
 	GLOB.global_radios -= src
 	follow_target = null
@@ -90,7 +91,7 @@ var/global/list/default_medbay_channels = list(
 	set_frequency(frequency)
 
 	for(var/ch_name in channels)
-		secure_radio_connections[ch_name] = radio_controller.add_object(src, radiochannels[ch_name],  RADIO_CHAT)
+		secure_radio_connections[ch_name] = SSradio.add_object(src, SSradio.radiochannels[ch_name],  RADIO_CHAT)
 
 /obj/item/radio/attack_ghost(mob/user)
 	return interact(user)
@@ -147,7 +148,7 @@ var/global/list/default_medbay_channels = list(
 		var/chan_stat = channels[ch_name]
 		var/listening = !!(chan_stat & FREQ_LISTENING) != 0
 
-		dat.Add(list(list("chan" = ch_name, "display_name" = ch_name, "secure_channel" = 1, "sec_channel_listen" = !listening, "chan_span" = frequency_span_class(radiochannels[ch_name]))))
+		dat.Add(list(list("chan" = ch_name, "display_name" = ch_name, "secure_channel" = 1, "sec_channel_listen" = !listening, "chan_span" = SSradio.frequency_span_class(SSradio.radiochannels[ch_name]))))
 
 	return dat
 
@@ -155,7 +156,7 @@ var/global/list/default_medbay_channels = list(
 	var/dat[0]
 	for(var/internal_chan in internal_channels)
 		if(has_channel_access(user, internal_chan))
-			dat.Add(list(list("chan" = internal_chan, "display_name" = get_frequency_name(text2num(internal_chan)), "chan_span" = frequency_span_class(text2num(internal_chan)))))
+			dat.Add(list(list("chan" = internal_chan, "display_name" = get_frequency_name(text2num(internal_chan)), "chan_span" = SSradio.frequency_span_class(text2num(internal_chan)))))
 
 	return dat
 
@@ -256,9 +257,10 @@ var/global/list/default_medbay_channels = list(
 			break
 	if(jammed)
 		message = Gibberish(message, 100)
+	var/list/message_pieces = message_to_multilingual(message)
 	Broadcast_Message(connection, A,
 						0, "*garbled automated announcement*", src,
-						message, from, "Automated Announcement", from, "synthesized voice",
+						message_pieces, from, "Automated Announcement", from, "synthesized voice",
 						4, 0, zlevel, connection.frequency, follow_target = follow_target)
 	qdel(A)
 
@@ -285,7 +287,7 @@ var/global/list/default_medbay_channels = list(
 	qdel(src)
 
 // Interprets the message mode when talking into a radio, possibly returning a connection datum
-/obj/item/radio/proc/handle_message_mode(mob/living/M as mob, message, message_mode)
+/obj/item/radio/proc/handle_message_mode(mob/living/M as mob, list/message_pieces, message_mode)
 	// If a channel isn't specified, send to common.
 	if(!message_mode || message_mode == "headset")
 		return radio_connection
@@ -301,11 +303,11 @@ var/global/list/default_medbay_channels = list(
 	// If we were to send to a channel we don't have, drop it.
 	return RADIO_CONNECTION_FAIL
 
-/obj/item/radio/talk_into(mob/living/M as mob, message, channel, var/verb = "says", var/datum/language/speaking = null)
+/obj/item/radio/talk_into(mob/living/M as mob, list/message_pieces, channel, var/verb = "says")
 	if(!on)
 		return 0 // the device has to be on
 	//  Fix for permacell radios, but kinda eh about actually fixing them.
-	if(!M || !message)
+	if(!M || !message_pieces)
 		return 0
 
 	//  Uncommenting this. To the above comment:
@@ -328,7 +330,7 @@ var/global/list/default_medbay_channels = list(
 	*/
 
 	//#### Grab the connection datum ####//
-	var/message_mode = handle_message_mode(M, message, channel)
+	var/message_mode = handle_message_mode(M, message_pieces, channel)
 	switch(message_mode) //special cases
 		if(RADIO_CONNECTION_FAIL)
 			return 0
@@ -361,7 +363,7 @@ var/global/list/default_medbay_channels = list(
 	var/jobname // the mob's "job"
 
 	if(jammed)
-		message = Gibberish(message, 100)
+		Gibberish_all(message_pieces, 100)
 
 	// --- Human: use their actual job ---
 	if(ishuman(M))
@@ -392,10 +394,11 @@ var/global/list/default_medbay_channels = list(
 	// --- Modifications to the mob's identity ---
 
 	// The mob is disguising their identity:
-	if(ishuman(M) && M.GetVoice() != real_name)
-		displayname = M.GetVoice()
-		jobname = "Unknown"
-		voicemask = TRUE
+	if(ishuman(M))
+		var/mob/living/carbon/human/H = M
+		displayname = H.voice
+		if(H.voice != real_name)
+			voicemask = TRUE
 
 	if(syndiekey && syndiekey.change_voice && connection.frequency == SYND_FREQ)
 		displayname = syndiekey.fake_name
@@ -430,7 +433,7 @@ var/global/list/default_medbay_channels = list(
 
 		  // Other tags:
 			"compression" = rand(45,50), // compressed radio signal
-			"message" = message, // the actual sent message
+			"message" = message_pieces, // the actual sent message
 			"connection" = connection, // the radio connection to use
 			"radio" = src, // stores the radio used for transmission
 			"slow" = 0, // how much to sleep() before broadcasting - simulates net lag
@@ -439,7 +442,6 @@ var/global/list/default_medbay_channels = list(
 			"server" = null, // the last server to log this signal
 			"reject" = 0,	// if nonzero, the signal will not be accepted by any broadcasting machinery
 			"level" = position.z, // The source's z level
-			"language" = speaking,
 			"verb" = verb
 		)
 		signal.frequency = connection.frequency // Quick frequency set
@@ -488,7 +490,7 @@ var/global/list/default_medbay_channels = list(
 		"vmask" = voicemask,	// 1 if the mob is using a voice gas mas
 
 		"compression" = 0, // uncompressed radio signal
-		"message" = message, // the actual sent message
+		"message" = message_pieces, // the actual sent message
 		"connection" = connection, // the radio connection to use
 		"radio" = src, // stores the radio used for transmission
 		"slow" = 0,
@@ -497,7 +499,6 @@ var/global/list/default_medbay_channels = list(
 		"server" = null,
 		"reject" = 0,
 		"level" = position.z,
-		"language" = speaking,
 		"verb" = verb
 	)
 	signal.frequency = connection.frequency // Quick frequency set
@@ -520,15 +521,14 @@ var/global/list/default_medbay_channels = list(
 	if(!connection)	return 0	//~Carn
 
 	return Broadcast_Message(connection, M, voicemask, pick(M.speak_emote),
-					  src, message, displayname, jobname, real_name, M.voice_name,
-					  filter_type, signal.data["compression"], list(position.z), connection.frequency,verb,speaking)
+					  src, message_pieces, displayname, jobname, real_name, M.voice_name,
+					  filter_type, signal.data["compression"], list(position.z), connection.frequency,verb)
 
 
-/obj/item/radio/hear_talk(mob/M as mob, msg, var/verb = "says", var/datum/language/speaking = null)
-
+/obj/item/radio/hear_talk(mob/M as mob, list/message_pieces, var/verb = "says")
 	if(broadcasting)
 		if(get_dist(src, M) <= canhear_range)
-			talk_into(M, msg,null,verb,speaking)
+			talk_into(M, message_pieces, null, verb)
 
 
 /*
@@ -555,7 +555,7 @@ var/global/list/default_medbay_channels = list(
 		var/turf/position = get_turf(src)
 		if(!position || !(position.z in level))
 			return -1
-	if(freq in ANTAG_FREQS)
+	if(freq in SSradio.ANTAG_FREQS)
 		if(!(syndiekey))//Checks to see if it's allowed on that frequency, based on the encryption keys
 			return -1
 	if(!freq) //recieved on main frequency
@@ -595,14 +595,13 @@ var/global/list/default_medbay_channels = list(
 
 	return null
 
-/obj/item/radio/examine(mob/user, var/distance = -1)
-	. = ..(user, distance)
-	if((in_range(src, user) || loc == user))
+/obj/item/radio/examine(mob/user)
+	. = ..()
+	if(in_range(src, user) || loc == user)
 		if(b_stat)
-			user.show_message("<span class='notice'>\the [src] can be attached and modified!</span>")
+			. += "<span class='notice'>\the [src] can be attached and modified!</span>"
 		else
-			user.show_message("<span class='notice'>\the [src] can not be modified or attached!</span>")
-	return .
+			. += "<span class='notice'>\the [src] can not be modified or attached!</span>"
 
 /obj/item/radio/attackby(obj/item/W as obj, mob/user as mob, params)
 	..()
@@ -654,9 +653,10 @@ var/global/list/default_medbay_channels = list(
 	icon_state = "radio"
 	canhear_range = 0
 	subspace_transmission = 1
+	dog_fashion = null
 
 /obj/item/radio/borg/syndicate
-	keyslot = new /obj/item/encryptionkey/syndicate
+	keyslot = new /obj/item/encryptionkey/syndicate/nukeops
 
 /obj/item/radio/borg/syndicate/CanUseTopic(mob/user, datum/topic_state/state)
 	. = ..()
@@ -699,7 +699,7 @@ var/global/list/default_medbay_channels = list(
 
 
 			for(var/ch_name in channels)
-				radio_controller.remove_object(src, radiochannels[ch_name])
+				SSradio.remove_object(src, SSradio.radiochannels[ch_name])
 				secure_radio_connections[ch_name] = null
 
 
@@ -752,13 +752,13 @@ var/global/list/default_medbay_channels = list(
 
 
 	for(var/ch_name in channels)
-		if(!radio_controller)
-			sleep(30) // Waiting for the radio_controller to be created.
-		if(!radio_controller)
+		if(!SSradio)
+			sleep(30) // Waiting for SSradio to be created.
+		if(!SSradio)
 			name = "broken radio"
 			return
 
-		secure_radio_connections[ch_name] = radio_controller.add_object(src, radiochannels[ch_name],  RADIO_CHAT)
+		secure_radio_connections[ch_name] = SSradio.add_object(src, SSradio.radiochannels[ch_name],  RADIO_CHAT)
 
 	return
 
@@ -829,18 +829,19 @@ var/global/list/default_medbay_channels = list(
 	return data
 
 /obj/item/radio/proc/config(op)
-	if(radio_controller)
+	if(SSradio)
 		for(var/ch_name in channels)
-			radio_controller.remove_object(src, radiochannels[ch_name])
+			SSradio.remove_object(src, SSradio.radiochannels[ch_name])
 	secure_radio_connections = new
 	channels = op
-	if(radio_controller)
+	if(SSradio)
 		for(var/ch_name in op)
-			secure_radio_connections[ch_name] = radio_controller.add_object(src, radiochannels[ch_name],  RADIO_CHAT)
+			secure_radio_connections[ch_name] = SSradio.add_object(src, SSradio.radiochannels[ch_name],  RADIO_CHAT)
 	return
 
 /obj/item/radio/off
 	listening = 0
+	dog_fashion = /datum/dog_fashion/back
 
 /obj/item/radio/phone
 	broadcasting = 0
@@ -848,6 +849,7 @@ var/global/list/default_medbay_channels = list(
 	icon_state = "red_phone"
 	listening = 1
 	name = "phone"
+	dog_fashion = null
 
 /obj/item/radio/phone/medbay
 	frequency = MED_I_FREQ
